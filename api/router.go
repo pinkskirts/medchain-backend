@@ -2,10 +2,14 @@ package api
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	utils "github.com/pinkskirts/medchain-backend/core/utils"
+)
+
+var (
+	logger = utils.BuildStdoutLogger("Router")
 )
 
 func Hello(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -13,9 +17,10 @@ func Hello(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func InitRouter() {
+	logger.Info("Initializing router")
 	router := httprouter.New()
 
 	router.GET("/", Hello)
 
-	log.Fatal(http.ListenAndServe(":6969", router))
+	logger.Fatal(http.ListenAndServe(":6969", router))
 }
