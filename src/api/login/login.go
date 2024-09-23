@@ -2,7 +2,7 @@ package login
 
 import (
 	"encoding/json"
-	"fmt"
+
 	"io/ioutil"
 	"log"
 	sql_basic "main/src/sql"
@@ -38,15 +38,19 @@ func Main(response http.ResponseWriter, request *http.Request) {
 		response.Header().Set("Content-Type", "application/json")
 		jsonResp, err := json.Marshal(resp)
 		if err != nil {
-			log.Panic("Erro ao converter em JSON")
+			log.Panicln("Erro ao converter em JSON")
+		}
+		if resp.Error.Status == 0 {
+			_, err = response.Write(jsonResp)
+			if err != nil {
+				log.Panicln("Erro ao retornar reqeust")
+			}
+			log.Println(request.Method, "- Terminated Request time", time.Since(startHour), " - ", http.StatusOK)
+		} else {
+			http.Error(response, string(jsonResp), resp.Error.Status)
+			log.Println(request.Method, "- Terminated Request time", time.Since(startHour), " - ", resp.Error.Status)
 		}
 
-		_, err = response.Write(jsonResp)
-		if err != nil {
-			http.Error(response, err.Error(), http.StatusInternalServerError)
-		}
-
-		log.Println("Request Get finalizado. Tempo request", time.Since(startHour))
 		return
 	} else {
 		http.Error(response, "Metodo inválido", http.StatusMethodNotAllowed)
@@ -93,14 +97,14 @@ func createTokenJWT(userMail string, PemissionsList []string) (token string) {
 	// Carregar a chave privada (private.pem)
 	privateKeyData, err := ioutil.ReadFile("private.pem")
 	if err != nil {
-		fmt.Println("Erro ao ler a chave privada:", err)
+		log.Panicln("Erro ao ler a chave privada:", err)
 		return
 	}
 
 	// Parse da chave privada
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyData)
 	if err != nil {
-		fmt.Println("Erro ao parsear a chave privada:", err)
+		log.Panicln("Erro ao parsear a chave privada:", err)
 		return
 	}
 
@@ -119,7 +123,7 @@ func createTokenJWT(userMail string, PemissionsList []string) (token string) {
 	// Gerando token assinado e passando para string
 	tokenString, err := jwt.NewWithClaims(jwt.SigningMethodRS256, bodyToken).SignedString(privateKey)
 	if err != nil {
-		fmt.Println("Erro ao gerar o token JWT:", err)
+		log.Panicln("Erro ao gerar o token JWT:", err)
 		return
 	}
 
