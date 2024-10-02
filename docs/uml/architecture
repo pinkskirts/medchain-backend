@@ -1,0 +1,48 @@
+@startuml
+
+skinparam linetype ortho
+
+together {
+    package "<<API>>" as apiPkg <<Rectangle>> {
+        class "Router" as router
+        class "Handler" as handler
+    }
+
+    router o-- handler
+
+    package "<<Core>>" as corePkg <<Rectangle>> {
+        class "Register" as register
+        class "Visualizer" as vizualizer
+        class "Validator" as validator
+    }
+}
+
+apiPkg o-- corePkg
+
+together {
+    package "<<Repository>>" as repositoryPkg <<Database>> {
+        class "ORM" as orm
+        interface "Repository DB" as repositoryDB
+    }
+
+    orm ..> repositoryDB
+
+    package "<<Ethereum>>" as ethereumPkg <<Rectangle>> {
+        class "Wallet" as wallet
+        class "Smart Contract" as smartContract
+        class "Client" as client
+        class "Connector" as connector
+        interface "Repository Eth" as repositoryEth
+    }
+}
+
+client ..> repositoryEth
+client *-- wallet
+client *-- smartContract
+
+connector *-- client
+
+corePkg -- ethereumPkg
+corePkg -- repositoryPkg
+
+@enduml

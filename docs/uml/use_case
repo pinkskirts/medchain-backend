@@ -1,0 +1,25 @@
+@startuml
+
+left to right direction
+
+skinparam linetype ortho
+
+actor Médico as medico
+actor Paciente as paciente
+actor Farmacia as farmacia
+
+rectangle "<<Medchain Use Case>>"{
+usecase "Criar uma Receita" as criarReceita
+usecase "Vizualizar uma Receita" as vizualizarReceita
+usecase "Autenticar uma receita" as autenticarReceita
+}
+
+medico -u-> criarReceita
+medico -u-> vizualizarReceita
+
+paciente -d-> vizualizarReceita
+
+farmacia -u-> vizualizarReceita
+farmacia -u-> autenticarReceita
+
+@enduml

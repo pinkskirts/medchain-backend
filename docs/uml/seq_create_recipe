@@ -1,0 +1,43 @@
+@startuml
+
+actor Médico as medico
+participant Interface as interface
+participant API as api
+control "<<Controller>>\nCore" as core
+database "Banco de Dados" as database
+collections Ethereum as ethereum
+
+note over medico, ethereum: Fluxo de Registro de uma receita sem o uso de assinatura digital
+
+medico ->> interface: Criar Receita
+activate interface
+
+interface ->> api ++ : <<send>>\n<<HTTP POST>>\nCriar Receita
+interface -> interface ++ : <<wait>>
+
+api -> core ++ : Criar Receita
+
+core -> database ++ : <<send>>\nRegistrar Receita em banco
+core -> core ++ : <<wait>>
+
+database --> core -- : <<receive>>\nRegistrado em banco
+deactivate core
+
+core -> ethereum ++ : <<send>>\nRegistrar Receita
+core -> core ++ : <<wait>>
+ethereum --> core -- : <<receive>>\nRegistrado na blockchain
+deactivate core
+
+return Registrado
+
+api -> interface -- : <<receive>>\n<<Resposta>>
+note over interface
+Imaginando que está seria uma
+request de baixo tempo de espera.
+<<Registro de alto desemplenho>>
+end note
+deactivate interface
+
+return <<return>>\nReceita Medica Criada
+
+@enduml

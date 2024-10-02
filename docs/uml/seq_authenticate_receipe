@@ -1,0 +1,34 @@
+@startuml
+
+actor Farmacia as farmacia
+participant Interface as interface
+participant API as api
+control "<<Controller>>\nCore" as core
+collections Ethereum as ethereum
+
+note over farmacia, ethereum: Fluxo de Autenticação de receita
+
+farmacia ->> interface: Autenticar receita
+activate interface
+
+interface ->> api ++ : <<send>>\n<<HTTP POST>>\nAutenticar Receita
+interface -> interface ++ : <<wait>>
+
+api -> core ++ : Autenticar receita
+
+core -> ethereum ++ : <<send>>\nBuscar receita
+core -> core ++ : <<wait>>
+ethereum -> ethereum ++ : Validar receita
+return <<Resposta>>
+
+ethereum --> core -- : <<receive>>\nValidação da receita
+deactivate core
+
+return Validação
+
+api -> interface -- : <<receive>>\n<<Resposta>>
+deactivate interface
+
+return <<return>>\nValidação da receita médica
+
+@enduml
