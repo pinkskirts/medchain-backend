@@ -6,6 +6,7 @@ type responseLogin struct {
 	Token string    `json:"token"`
 	Error typeError `json:"errror"`
 }
+
 type typeError struct {
 	Status int    `json:"status"`
 	Error  string `json:"error"`
