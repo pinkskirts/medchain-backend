@@ -9,4 +9,5 @@ func main() {
 	// api.InitRouter()
 
     ethereum.Connect()
+    ethereum.GenerateWallet("123")
 }
