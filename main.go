@@ -8,5 +8,6 @@ import (
 func main() {
 	// api.InitRouter()
 
-    ethereum.Connect()
+    // ethereum.Connect()
+    ethereum.DeployContract()
 }
