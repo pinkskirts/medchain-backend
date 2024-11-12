@@ -3,74 +3,363 @@ package ethereum
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/pinkskirts/medchain-backend/contracts"
 )
 
-const (
-    contractBin = "0x6080604052348015600e575f80fd5b506112438061001c5f395ff3fe608060405234801561000f575f80fd5b5060043610610055575f3560e01c8063185c20c61461005957806331dfc91b1461008d578063a3716dd2146100c0578063d86e1e02146100f0578063e4ab68531461010c575b5f80fd5b610073600480360381019061006e91906107b4565b61012a565b6040516100849594939291906109e1565b60405180910390f35b6100a760048036038101906100a291906107b4565b610415565b6040516100b79493929190610a47565b60405180910390f35b6100da60048036038101906100d591906107b4565b61056b565b6040516100e79190610ab2565b60405180910390f35b61010a60048036038101906101059190610cd9565b61058f565b005b61011461076a565b6040516101219190610dc0565b60405180910390f35b5f8060608060605f805f8881526020019081526020015f209050805f015f9054906101000a900473ffffffffffffffffffffffffffffffffffffffff16816001015482600201836003018460040182805461018490610e06565b80601f01602080910402602001604051908101604052809291908181526020018280546101b090610e06565b80156101fb5780601f106101d2576101008083540402835291602001916101fb565b820191905f5260205f20905b8154815290600101906020018083116101de57829003601f168201915b5050505050925081805461020e90610e06565b80601f016020809104026020016040519081016040528092919081815260200182805461023a90610e06565b80156102855780601f1061025c57610100808354040283529160200191610285565b820191905f5260205f20905b81548152906001019060200180831161026857829003601f168201915b5050505050915080805480602002602001604051908101604052809291908181526020015f905b828210156103fb578382905f5260205f2090600202016040518060400160405290815f820180546102dc90610e06565b80601f016020809104026020016040519081016040528092919081815260200182805461030890610e06565b80156103535780601f1061032a57610100808354040283529160200191610353565b820191905f5260205f20905b81548152906001019060200180831161033657829003601f168201915b5050505050815260200160018201805461036c90610e06565b80601f016020809104026020016040519081016040528092919081815260200182805461039890610e06565b80156103e35780601f106103ba576101008083540402835291602001916103e3565b820191905f5260205f20905b8154815290600101906020018083116103c657829003601f168201915b505050505081525050815260200190600101906102ac565b505050509050955095509550955095505091939590929450565b5f602052805f5260405f205f91509050805f015f9054906101000a900473ffffffffffffffffffffffffffffffffffffffff169080600101549080600201805461045e90610e06565b80601f016020809104026020016040519081016040528092919081815260200182805461048a90610e06565b80156104d55780601f106104ac576101008083540402835291602001916104d5565b820191905f5260205f20905b8154815290600101906020018083116104b857829003601f168201915b5050505050908060030180546104ea90610e06565b80601f016020809104026020016040519081016040528092919081815260200182805461051690610e06565b80156105615780601f1061053857610100808354040283529160200191610561565b820191905f5260205f20905b81548152906001019060200180831161054457829003601f168201915b5050505050905084565b5f805f808481526020019081526020015f2090508060010154421115915050919050565b80518251146105d3576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016105ca90610ea6565b60405180910390fd5b5f805f60015481526020019081526020015f20905033815f015f6101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550838160010181905550858160020190816106439190611061565b50848160030190816106559190611061565b505f5b835181101561070d5781600401604051806040016040528086848151811061068357610682611130565b5b602002602001015181526020018584815181106106a3576106a2611130565b5b6020026020010151815250908060018154018082558091505060019003905f5260205f2090600202015f909190919091505f820151815f0190816106e79190611061565b5060208201518160010190816106fd9190611061565b5050508080600101915050610658565b507ffbb8acffeb08e25212f3aa71987ee91c19f6ada29bb4bb2aaff1866a0bc5028860015433886040516107439392919061115d565b60405180910390a160015f81548092919061075d906111c6565b9190505550505050505050565b60015481565b5f604051905090565b5f80fd5b5f80fd5b5f819050919050565b61079381610781565b811461079d575f80fd5b50565b5f813590506107ae8161078a565b92915050565b5f602082840312156107c9576107c8610779565b5b5f6107d6848285016107a0565b91505092915050565b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f610808826107df565b9050919050565b610818816107fe565b82525050565b61082781610781565b82525050565b5f81519050919050565b5f82825260208201905092915050565b8281835e5f83830152505050565b5f601f19601f8301169050919050565b5f61086f8261082d565b6108798185610837565b9350610889818560208601610847565b61089281610855565b840191505092915050565b5f81519050919050565b5f82825260208201905092915050565b5f819050602082019050919050565b5f82825260208201905092915050565b5f6108e08261082d565b6108ea81856108c6565b93506108fa818560208601610847565b61090381610855565b840191505092915050565b5f604083015f8301518482035f86015261092882826108d6565b9150506020830151848203602086015261094282826108d6565b9150508091505092915050565b5f61095a838361090e565b905092915050565b5f602082019050919050565b5f6109788261089d565b61098281856108a7565b935083602082028501610994856108b7565b805f5b858110156109cf57848403895281516109b0858261094f565b94506109bb83610962565b925060208a01995050600181019050610997565b50829750879550505050505092915050565b5f60a0820190506109f45f83018861080f565b610a01602083018761081e565b8181036040830152610a138186610865565b90508181036060830152610a278185610865565b90508181036080830152610a3b818461096e565b90509695505050505050565b5f608082019050610a5a5f83018761080f565b610a67602083018661081e565b8181036040830152610a798185610865565b90508181036060830152610a8d8184610865565b905095945050505050565b5f8115159050919050565b610aac81610a98565b82525050565b5f602082019050610ac55f830184610aa3565b92915050565b5f80fd5b5f80fd5b7f4e487b71000000000000000000000000000000000000000000000000000000005f52604160045260245ffd5b610b0982610855565b810181811067ffffffffffffffff82111715610b2857610b27610ad3565b5b80604052505050565b5f610b3a610770565b9050610b468282610b00565b919050565b5f67ffffffffffffffff821115610b6557610b64610ad3565b5b610b6e82610855565b9050602081019050919050565b828183375f83830152505050565b5f610b9b610b9684610b4b565b610b31565b905082815260208101848484011115610bb757610bb6610acf565b5b610bc2848285610b7b565b509392505050565b5f82601f830112610bde57610bdd610acb565b5b8135610bee848260208601610b89565b91505092915050565b5f67ffffffffffffffff821115610c1157610c10610ad3565b5b602082029050602081019050919050565b5f80fd5b5f610c38610c3384610bf7565b610b31565b90508083825260208201905060208402830185811115610c5b57610c5a610c22565b5b835b81811015610ca257803567ffffffffffffffff811115610c8057610c7f610acb565b5b808601610c8d8982610bca565b85526020850194505050602081019050610c5d565b5050509392505050565b5f82601f830112610cc057610cbf610acb565b5b8135610cd0848260208601610c26565b91505092915050565b5f805f805f60a08688031215610cf257610cf1610779565b5b5f86013567ffffffffffffffff811115610d0f57610d0e61077d565b5b610d1b88828901610bca565b955050602086013567ffffffffffffffff811115610d3c57610d3b61077d565b5b610d4888828901610bca565b9450506040610d59888289016107a0565b935050606086013567ffffffffffffffff811115610d7a57610d7961077d565b5b610d8688828901610cac565b925050608086013567ffffffffffffffff811115610da757610da661077d565b5b610db388828901610cac565b9150509295509295909350565b5f602082019050610dd35f83018461081e565b92915050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52602260045260245ffd5b5f6002820490506001821680610e1d57607f821691505b602082108103610e3057610e2f610dd9565b5b50919050565b7f4461646f73206465206d65646963616d656e746f7320696e636f6e73697374655f8201527f6e74657300000000000000000000000000000000000000000000000000000000602082015250565b5f610e90602483610837565b9150610e9b82610e36565b604082019050919050565b5f6020820190508181035f830152610ebd81610e84565b9050919050565b5f819050815f5260205f209050919050565b5f6020601f8301049050919050565b5f82821b905092915050565b5f60088302610f207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff82610ee5565b610f2a8683610ee5565b95508019841693508086168417925050509392505050565b5f819050919050565b5f610f65610f60610f5b84610781565b610f42565b610781565b9050919050565b5f819050919050565b610f7e83610f4b565b610f92610f8a82610f6c565b848454610ef1565b825550505050565b5f90565b610fa6610f9a565b610fb1818484610f75565b505050565b5b81811015610fd457610fc95f82610f9e565b600181019050610fb7565b5050565b601f82111561101957610fea81610ec4565b610ff384610ed6565b81016020851015611002578190505b61101661100e85610ed6565b830182610fb6565b50505b505050565b5f82821c905092915050565b5f6110395f198460080261101e565b1980831691505092915050565b5f611051838361102a565b9150826002028217905092915050565b61106a8261082d565b67ffffffffffffffff81111561108357611082610ad3565b5b61108d8254610e06565b611098828285610fd8565b5f60209050601f8311600181146110c9575f84156110b7578287015190505b6110c18582611046565b865550611128565b601f1984166110d786610ec4565b5f5b828110156110fe578489015182556001820191506020850194506020810190506110d9565b8683101561111b5784890151611117601f89168261102a565b8355505b6001600288020188555050505b505050505050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52603260045260245ffd5b5f6060820190506111705f83018661081e565b61117d602083018561080f565b818103604083015261118f8184610865565b9050949350505050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b5f6111d082610781565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff820361120257611201611199565b5b60018201905091905056fea2646970667358221220e641e53158675ab5c56c99c79c47be23cc69e6de0c55329f39966454f60f87a264736f6c634300081a0033"
-    contractAbi = "[ { \"anonymous\": false, \"inputs\": [ { \"indexed\": false, \"internalType\": \"uint256\", \"name\": \"prescription_id\", \"type\": \"uint256\" }, { \"indexed\": false, \"internalType\": \"address\", \"name\": \"signer\", \"type\": \"address\" }, { \"indexed\": false, \"internalType\": \"string\", \"name\": \"patient\", \"type\": \"string\" } ], \"name\": \"PrescriptionCreated\", \"type\": \"event\" }, { \"inputs\": [ { \"internalType\": \"string\", \"name\": \"_patient\", \"type\": \"string\" }, { \"internalType\": \"string\", \"name\": \"_description\", \"type\": \"string\" }, { \"internalType\": \"uint256\", \"name\": \"_exp_date\", \"type\": \"uint256\" }, { \"internalType\": \"string[]\", \"name\": \"_medicine_names\", \"type\": \"string[]\" }, { \"internalType\": \"string[]\", \"name\": \"_posologies\", \"type\": \"string[]\" } ], \"name\": \"createPrescription\", \"outputs\": [], \"stateMutability\": \"nonpayable\", \"type\": \"function\" }, { \"inputs\": [ { \"internalType\": \"uint256\", \"name\": \"\", \"type\": \"uint256\" } ], \"name\": \"prescriptions\", \"outputs\": [ { \"internalType\": \"address\", \"name\": \"signer\", \"type\": \"address\" }, { \"internalType\": \"uint256\", \"name\": \"exp_date\", \"type\": \"uint256\" }, { \"internalType\": \"string\", \"name\": \"patient\", \"type\": \"string\" }, { \"internalType\": \"string\", \"name\": \"description\", \"type\": \"string\" } ], \"stateMutability\": \"view\", \"type\": \"function\" }, { \"inputs\": [], \"name\": \"prescriptions_total\", \"outputs\": [ { \"internalType\": \"uint256\", \"name\": \"\", \"type\": \"uint256\" } ], \"stateMutability\": \"view\", \"type\": \"function\" }, { \"inputs\": [ { \"internalType\": \"uint256\", \"name\": \"_prescriptionId\", \"type\": \"uint256\" } ], \"name\": \"receitaValida\", \"outputs\": [ { \"internalType\": \"bool\", \"name\": \"\", \"type\": \"bool\" } ], \"stateMutability\": \"view\", \"type\": \"function\" }, { \"inputs\": [ { \"internalType\": \"uint256\", \"name\": \"_prescriptionId\", \"type\": \"uint256\" } ], \"name\": \"viewPrescription\", \"outputs\": [ { \"internalType\": \"address\", \"name\": \"signer\", \"type\": \"address\" }, { \"internalType\": \"uint256\", \"name\": \"exp_date\", \"type\": \"uint256\" }, { \"internalType\": \"string\", \"name\": \"patient\", \"type\": \"string\" }, { \"internalType\": \"string\", \"name\": \"description\", \"type\": \"string\" }, { \"components\": [ { \"internalType\": \"string\", \"name\": \"name\", \"type\": \"string\" }, { \"internalType\": \"string\", \"name\": \"posology\", \"type\": \"string\" } ], \"internalType\": \"struct PrescriptionContract.Medication[]\", \"name\": \"medications\", \"type\": \"tuple[]\" } ], \"stateMutability\": \"view\", \"type\": \"function\" } ]"
-)
+func DeployContracts() {
+	// Connect to the Ethereum client
+	client, err := Connect()
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-func DeployContract() {
-    client, err := Connect()
-    if err != nil {
-        logger.Fatal(err)
-    }
+	// Load the private key
+	pk, err := crypto.HexToECDSA(WALLET_KEY)
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-    pk, err := crypto.HexToECDSA(WALLET_KEY)
-    if err != nil {
-        logger.Fatal(err)
-    }
+	// Get the public key and address
+	pubk := pk.Public()
+	pubkECDSA, ok := pubk.(*ecdsa.PublicKey)
+	if !ok {
+		logger.Fatal("Failed to cast public key to ECDSA")
+	}
+	fromAddr := crypto.PubkeyToAddress(*pubkECDSA)
 
-    pubk := pk.Public()
-    pubkECDSA, ok := pubk.(*ecdsa.PublicKey)
-    if !ok { // Assert cast
-        log.Fatal("Failed to cast public key to ECDSA Format")
-    }
+	// Get the nonce
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddr)
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-    fromAddr := crypto.PubkeyToAddress(*pubkECDSA)
-    nonce, err := client.PendingNonceAt(context.Background(), fromAddr)
-    if err != nil {
-        logger.Fatal(err)
-    }
+	// Get the gas price
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-    gasPrice, err := client.SuggestGasPrice(context.Background())
-    if err != nil {
-        logger.Fatal(err)
-    }
+	// Get the chain ID
+	chainID, err := client.ChainID(context.Background())
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-    chainID, err := client.ChainID(context.Background())
-    if err != nil {
-        logger.Panic(err)
-    }
+	// Create a keyed transactor
+	auth, err := bind.NewKeyedTransactorWithChainID(pk, chainID)
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-    auth, err := bind.NewKeyedTransactorWithChainID(pk, chainID)
-    if err != nil {
-        logger.Panic(err)
-    }
+	auth.GasLimit = uint64(6000000)
+	auth.GasPrice = gasPrice
 
-    auth.Nonce = big.NewInt(int64(nonce))
-    auth.GasLimit = uint64(300000) // in units
-    auth.GasPrice = gasPrice
+	// Read the Storage contract's ABI and bytecode from files
+	storageABI, err := os.ReadFile("build/Storage.abi")
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-    abiParsed, err := abi.JSON(strings.NewReader(contractAbi))
-    if err != nil {
-        logger.Panic(err)
-    }
+	storageBin, err := os.ReadFile("build/Storage.bin")
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-    addr, tx, _, err := bind.DeployContract(auth, abiParsed, common.FromHex(contractBin), client)
-    if err != nil {
-        logger.Panic(err.Error())
-    }
+	// Parse the Storage contract's ABI
+	storageAbiParsed, err := abi.JSON(strings.NewReader(string(storageABI)))
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-    fmt.Println(addr.Hex())
-    fmt.Println(tx.Hash().Hex())
+	// Deploy the Storage contract
+	auth.Nonce = big.NewInt(int64(nonce))
+	storageAddr, tx, _, err := bind.DeployContract(
+		auth,
+		storageAbiParsed,
+		common.FromHex(string(storageBin)),
+		client,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Storage contract deployed at:", storageAddr.Hex())
+	fmt.Println("Transaction hash:", tx.Hash().Hex())
+
+	// Wait for the transaction to be mined (optional)
+	_, err = bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Increment the nonce for the next transaction
+	nonce++
+
+	// Read the Factory contract's ABI and bytecode from files
+	factoryABI, err := os.ReadFile("build/Factory.abi")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	factoryBin, err := os.ReadFile("build/Factory.bin")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Parse the Factory contract's ABI
+	factoryAbiParsed, err := abi.JSON(strings.NewReader(string(factoryABI)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Deploy the Factory contract, passing the Storage contract's address to the constructor
+	auth.Nonce = big.NewInt(int64(nonce))
+	factoryAddr, tx, _, err := bind.DeployContract(
+		auth,
+		factoryAbiParsed,
+		common.FromHex(string(factoryBin)),
+		client,
+		storageAddr, // Constructor parameter for Factory contract
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Factory contract deployed at:", factoryAddr.Hex())
+	fmt.Println("Transaction hash:", tx.Hash().Hex())
+}
+
+func InteractWithFactoryContract(factoryAddress common.Address, client *ethclient.Client) {
+	// Instantiate the Factory contract
+	factoryInstance, err := contracts.NewFactory(factoryAddress, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// For methods that modify the state, use a transact
+	auth, err := PrepareAuth(client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Prepare parameters for the createPrescription function
+	expirationDate := "2025-01-01"
+	patient := "John Doe"
+	dosageInstructions := "Take one pill daily"
+	medications := []string{"MedicationA", "MedicationB"}
+	isValid := true
+
+	tx, err := factoryInstance.CreatePrescription(
+		auth,
+		expirationDate,
+		patient,
+		dosageInstructions,
+		medications,
+		isValid,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Transaction submitted:", tx.Hash().Hex())
+
+	// Optionally, wait for the transaction to be mined
+	receipt, err := bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Transaction mined in block", receipt.BlockNumber)
+}
+
+func PrepareAuth(client *ethclient.Client) (*bind.TransactOpts, error) {
+	pk, err := crypto.HexToECDSA(WALLET_KEY)
+	if err != nil {
+		return nil, err
+	}
+
+	chainID, err := client.ChainID(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(pk, chainID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Customizar as opções de transação
+	auth.GasLimit = uint64(6000000)
+
+	auth.GasPrice, err = client.SuggestGasPrice(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	return auth, nil
+}
+
+type PrescriptionDetails struct {
+	Address            string   `json:"address"`
+	SigningDoctor      string   `json:"signingDoctor"`
+	ExpirationDate     string   `json:"expirationDate"`
+	Patient            string   `json:"patient"`
+	DosageInstructions string   `json:"dosageInstructions"`
+	Medications        []string `json:"medications"`
+	IsValid            bool     `json:"isValid"`
+}
+
+func InteractWithStorageContract(storageAddress common.Address, client *ethclient.Client) ([]*PrescriptionDetails, error) {
+	// Instantiate the Storage contract
+	storageInstance, err := contracts.NewStorage(storageAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all stored prescription addresses
+	prescriptionAddresses, err := storageInstance.GetAllPrescriptionAddresses(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	// For each prescription address, get the details
+	var prescriptions []*PrescriptionDetails
+	for _, prescriptionAddress := range prescriptionAddresses {
+		// Get the details of the prescription
+		details, err := GetPrescriptionDetailsByAddress(prescriptionAddress, client)
+		if err != nil {
+			log.Printf("Error getting prescription details at %s: %v", prescriptionAddress.Hex(), err)
+			continue
+		}
+
+		prescriptions = append(prescriptions, details)
+	}
+
+	// Return the list of prescriptions
+	return prescriptions, nil
+}
+
+func GetPrescriptionDetailsByAddress(prescriptionAddress common.Address, client *ethclient.Client) (*PrescriptionDetails, error) {
+	// Instantiate the Prescription contract
+	prescriptionInstance, err := contracts.NewPrescription(prescriptionAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call getPrescriptionDetails to get all details
+	signingDoctor, expirationDate, patient, dosageInstructions, medications, isValid, err := prescriptionInstance.GetPrescriptionDetails(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the PrescriptionDetails struct
+	details := &PrescriptionDetails{
+		Address:            prescriptionAddress.Hex(),
+		SigningDoctor:      signingDoctor.Hex(),
+		ExpirationDate:     expirationDate,
+		Patient:            patient,
+		DosageInstructions: dosageInstructions,
+		Medications:        medications,
+		IsValid:            isValid,
+	}
+
+	return details, nil
+}
+
+type CreatePrescriptionRequest struct {
+	ExpirationDate     string   `json:"expirationDate"`
+	Patient            string   `json:"patient"`
+	DosageInstructions string   `json:"dosageInstructions"`
+	Medications        []string `json:"medications"`
+	IsValid            bool     `json:"isValid"`
+}
+
+func CreatePrescription(factoryAddress common.Address, client *ethclient.Client, request *CreatePrescriptionRequest) (common.Address, error) {
+	// Instanciar o contrato Factory
+	factoryInstance, err := contracts.NewFactory(factoryAddress, client)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	// Preparar o transactor
+	auth, err := PrepareAuth(client)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	// Chamar a função CreatePrescription do contrato Factory
+	tx, err := factoryInstance.CreatePrescription(
+		auth,
+		request.ExpirationDate,
+		request.Patient,
+		request.DosageInstructions,
+		request.Medications,
+		request.IsValid,
+	)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	fmt.Println("Transação submetida:", tx.Hash().Hex())
+
+	// Aguardar a transação ser minerada
+	receipt, err := bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	fmt.Println("Transação minerada no bloco", receipt.BlockNumber)
+
+	// Obter o endereço da nova prescrição a partir dos logs de eventos
+	// Assumindo que o contrato Factory emite um evento PrescriptionCreated(address)
+	factoryAbi, err := abi.JSON(strings.NewReader(contracts.FactoryABI))
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	// Hash da assinatura do evento
+	eventSignature := []byte("PrescriptionCreated(address)")
+	eventSignatureHash := crypto.Keccak256Hash(eventSignature)
+
+	var prescriptionAddress common.Address
+
+	for _, vLog := range receipt.Logs {
+		if len(vLog.Topics) > 0 && vLog.Topics[0] == eventSignatureHash {
+			// Encontrou o evento
+			var eventData struct {
+				PrescriptionAddress common.Address
+			}
+
+			err := factoryAbi.UnpackIntoInterface(&eventData, "PrescriptionCreated", vLog.Data)
+			if err != nil {
+				return common.Address{}, err
+			}
+
+			// O endereço da prescrição pode estar em Topics[1]
+			if len(vLog.Topics) > 1 {
+				prescriptionAddress = common.HexToAddress(vLog.Topics[1].Hex())
+			} else {
+				prescriptionAddress = eventData.PrescriptionAddress
+			}
+			break
+		}
+	}
+
+	if prescriptionAddress == (common.Address{}) {
+		return common.Address{}, errors.New("evento PrescriptionCreated não encontrado nos logs")
+	}
+
+	return prescriptionAddress, nil
 }
