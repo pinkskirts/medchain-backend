@@ -1,13 +1,24 @@
 package main
 
 import (
-	// "github.com/pinkskirts/medchain-backend/api"
+	"log"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/pinkskirts/medchain-backend/api"
 	"github.com/pinkskirts/medchain-backend/ethereum"
 )
 
 func main() {
-	// api.InitRouter()
+	// ethereum.DeployContracts()
 
-    // ethereum.Connect()
-    ethereum.DeployContract()
+	client, err := ethereum.Connect()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+
+	ethereum.InteractWithStorageContract(storageAddress, client)
+
+	api.InitAPI(client, storageAddress, factoryAddress)
+	api.InitRouter()
 }
