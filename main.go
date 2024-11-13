@@ -22,6 +22,5 @@ func main() {
 	ethereum.InteractWithStorageContract(storageAddress, client)
 	ethereum.InteractWithFactoryContract(factoryAddress, client)
 
-	api.InitAPI(client, storageAddress, factoryAddress)
-	api.InitRouter()
+	api.InitRouter(client, storageAddress, factoryAddress)
 }
